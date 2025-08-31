@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { sendChat } from "./api.js";
+// src/App.jsx
+import { useEffect, useRef, useState } from "react";
+import { sendChat, getConfigStatus } from "./api.js";
 
 export default function App() {
   const [conversationId, setConversationId] = useState(
@@ -8,26 +9,37 @@ export default function App() {
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
+  const [startupError, setStartupError] = useState("");
   const chatRef = useRef(null);
 
-  // scroll to bottom when messages change
+  // Show missing config clearly on screen
+  useEffect(() => {
+    const { missing } = getConfigStatus();
+    if (missing.length) {
+      setStartupError(
+        `Missing environment variable(s): ${missing.join(
+          ", "
+        )}. Set them in Vercel → Project → Settings → Environment Variables and redeploy.`
+      );
+    }
+  }, []);
+
   useEffect(() => {
     if (chatRef.current) chatRef.current.scrollTop = chatRef.current.scrollHeight;
   }, [messages]);
 
   // first load → get greeting
   useEffect(() => {
-    if (!conversationId) {
+    if (!startupError && !conversationId) {
       handleSend({});
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [startupError]);
 
   async function handleSend({ payloadText, action } = {}) {
-    if (sending) return;
+    if (sending || startupError) return;
     setSending(true);
 
-    // optimistic render user message
     if (payloadText) {
       setMessages((m) => [...m, { role: "user", text: payloadText }]);
     }
@@ -52,7 +64,7 @@ export default function App() {
     } catch (e) {
       setMessages((m) => [
         ...m,
-        { role: "assistant", text: "Network error. Please try again." }
+        { role: "assistant", text: String(e.message || e) }
       ]);
     } finally {
       setSending(false);
@@ -64,7 +76,7 @@ export default function App() {
     localStorage.removeItem("rezervo_conversation_id");
     setConversationId(null);
     setMessages([]);
-    handleSend({});
+    if (!startupError) handleSend({});
   }
 
   return (
@@ -74,35 +86,60 @@ export default function App() {
         <span className="muted">Book restaurants in Madrid</span>
       </header>
 
-      <div id="chat" ref={chatRef} className="chat" aria-live="polite">
-        {messages.map((m, i) => (
-          <Message key={i} m={m} onChip={(action) => handleSend({ action })} />
-        ))}
-      </div>
+      {startupError ? (
+        <div className="chat" style={{ padding: 20 }}>
+          <div className="msg assistant">
+            <strong>Configuration needed</strong>
+            <div style={{ marginTop: 8 }}>{startupError}</div>
+            <div style={{ marginTop: 8 }}>
+              Required:
+              <ul>
+                <li><code>VITE_CHAT_URL</code> = your Supabase chat Invoke URL</li>
+                <li><code>VITE_SUPABASE_ANON_KEY</code> = your anon key</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <>
+          <div id="chat" ref={chatRef} className="chat" aria-live="polite">
+            {messages.map((m, i) => (
+              <Message key={i} m={m} onChip={(action) => handleSend({ action })} />
+            ))}
+          </div>
 
-      <form
-        className="composer"
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (!text.trim()) return;
-          handleSend({ payloadText: text.trim() });
-        }}
-      >
-        <input
-          type="text"
-          placeholder="Type here… e.g. 2025-09-05 dinner 4 Salamanca Italian €€"
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          disabled={sending}
-        />
-        <button type="submit" disabled={sending}>
-          Send
-        </button>
-      </form>
+          <form
+            className="composer"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (!text.trim()) return;
+              handleSend({ payloadText: text.trim() });
+              setText("");
+            }}
+          >
+            <input
+              type="text"
+              placeholder="Type here… e.g. 2025-09-05 dinner 4 Salamanca Italian €€"
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              disabled={sending}
+            />
+            <button type="submit" disabled={sending}>
+              Send
+            </button>
+          </form>
+        </>
+      )}
 
       <footer>
         <div className="muted">MVP demo • Emails go to your Resend sandbox</div>
-        <a href="#" onClick={(e) => { e.preventDefault(); resetConversation(); }}>
+        <a
+          href="#"
+          onClick={(e) => {
+            e.preventDefault();
+            resetConversation();
+          }}
+        >
           Reset conversation
         </a>
       </footer>

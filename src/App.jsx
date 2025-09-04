@@ -1,8 +1,31 @@
 // src/App.jsx
+import Logo from "./Logo.jsx";
 import { useEffect, useRef, useState } from "react";
 import { sendChat, getConfigStatus } from "./api.js";
 
 export default function App() {
+  // ---- Theme handling (light/dark) ----
+  const [theme, setTheme] = useState(() => {
+    const stored = localStorage.getItem("rezervo_theme");
+    if (stored === "light" || stored === "dark") return stored;
+    // default to system preference
+    const prefersLight =
+      typeof window !== "undefined" &&
+      window.matchMedia &&
+      window.matchMedia("(prefers-color-scheme: light)").matches;
+    return prefersLight ? "light" : "dark";
+  });
+
+  useEffect(() => {
+    // reflect theme to <html data-theme="..."> so CSS vars in index.html apply
+    document.documentElement.setAttribute(
+      "data-theme",
+      theme === "light" ? "light" : ""
+    );
+    localStorage.setItem("rezervo_theme", theme);
+  }, [theme]);
+
+  // ---- Chat state ----
   const [conversationId, setConversationId] = useState(
     localStorage.getItem("rezervo_conversation_id") || null
   );
@@ -24,6 +47,7 @@ export default function App() {
     }
   }, []);
 
+  // Auto-scroll chat to bottom when new messages arrive
   useEffect(() => {
     if (chatRef.current) chatRef.current.scrollTop = chatRef.current.scrollHeight;
   }, [messages]);
@@ -50,7 +74,7 @@ export default function App() {
         channel: "web",
         locale: "en-GB",
         ...(payloadText ? { text: payloadText } : {}),
-        ...(action ? { action } : {})
+        ...(action ? { action } : {}),
       };
 
       const data = await sendChat(body);
@@ -64,7 +88,7 @@ export default function App() {
     } catch (e) {
       setMessages((m) => [
         ...m,
-        { role: "assistant", text: String(e.message || e) }
+        { role: "assistant", text: String(e.message || e) },
       ]);
     } finally {
       setSending(false);
@@ -81,9 +105,20 @@ export default function App() {
 
   return (
     <div className="wrap">
-      <header>
-        <h1>Rezervo</h1>
-        <span className="muted">Book restaurants in Madrid</span>
+      <header style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <Logo theme={theme} height={22} />
+        <div className="muted" style={{ flex: 1 }}>
+          Book restaurants in Madrid
+        </div>
+        <button
+          type="button"
+          className="chip"
+          onClick={() => setTheme(theme === "light" ? "dark" : "light")}
+          title="Toggle theme"
+          aria-label="Toggle light/dark theme"
+        >
+          {theme === "light" ? "Dark mode" : "Light mode"}
+        </button>
       </header>
 
       {startupError ? (
@@ -94,8 +129,12 @@ export default function App() {
             <div style={{ marginTop: 8 }}>
               Required:
               <ul>
-                <li><code>VITE_CHAT_URL</code> = your Supabase chat Invoke URL</li>
-                <li><code>VITE_SUPABASE_ANON_KEY</code> = your anon key</li>
+                <li>
+                  <code>VITE_CHAT_URL</code> = your Supabase chat Invoke URL
+                </li>
+                <li>
+                  <code>VITE_SUPABASE_ANON_KEY</code> = your anon key
+                </li>
               </ul>
             </div>
           </div>
@@ -104,8 +143,19 @@ export default function App() {
         <>
           <div id="chat" ref={chatRef} className="chat" aria-live="polite">
             {messages.map((m, i) => (
-              <Message key={i} m={m} onChip={(action) => handleSend({ action })} />
+              <Message
+                key={i}
+                m={m}
+                onChip={(action) => handleSend({ action })}
+              />
             ))}
+
+            {/* typing indicator while sending */}
+            {sending && (
+              <div className="msg assistant" aria-live="polite">
+                <div>Typing…</div>
+              </div>
+            )}
           </div>
 
           <form
@@ -123,9 +173,11 @@ export default function App() {
               value={text}
               onChange={(e) => setText(e.target.value)}
               disabled={sending}
+              aria-label="Message"
+              autoComplete="off"
             />
-            <button type="submit" disabled={sending}>
-              Send
+            <button type="submit" disabled={sending} className="btn">
+              {sending ? "Sending…" : "Send"}
             </button>
           </form>
         </>

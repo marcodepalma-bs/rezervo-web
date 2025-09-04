@@ -15,77 +15,156 @@
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
 
-    <style>
-      /* ===========================
-         Rezervo – Spicy Marinara Palette
-         =========================== */
+<style>
+  /* -------- Brand palette variables -------- */
+  /* Dark theme (default) */
+  :root:not([data-theme="light"]) {
+    --bg: #0b0f14;
+    --panel: #111722;
+    --text: #e7edf5;
+    --muted: #9bb0c3;
+    --accent: #ffb300;     /* Saffron */
+    --chip: #1b2433;
 
-      /* Default: DARK theme (Charcoal bg, Porcelain text) */
-      :root {
-        --bg:        #1B1B1B;  /* Charcoal */
-        --panel:     #232323;  /* darker panel */
-        --text:      #FFF4E6;  /* Porcelain */
-        --muted:     #CFC8C1;  /* soft light text for secondary labels */
-        --accent:    #E53935;  /* Chili Red (primary) */
-        --accent2:   #FFB300;  /* Saffron */
-        --success:   #2E7D32;  /* Basil Green */
-        --chip:      #2A2A2A;  /* subtle dark chip/bubble */
-        --border:    #343434;
-        --bubbleA:   #242424;  /* assistant bubble */
-        --bubbleU:   #2E2E2E;  /* user bubble */
-        --link:      #FFB300;  /* Saffron links pop on dark */
-      }
+    --primary: #e53935;    /* Chili Red */
+    --success: #2e7d32;    /* Basil Green */
 
-      /* LIGHT theme (Porcelain bg, Charcoal text) */
-      :root[data-theme="light"] {
-        --bg:        #FFF4E6;  /* Porcelain */
-        --panel:     #FFFFFF;  /* white card on porcelain */
-        --text:      #1B1B1B;  /* Charcoal */
-        --muted:     #5B5B5B;  /* soft dark text for secondary labels */
-        --accent:    #E53935;  /* Chili Red (primary) */
-        --accent2:   #FFB300;  /* Saffron */
-        --success:   #2E7D32;  /* Basil Green */
-        --chip:      #FFE9D8;  /* warm chip/bubble on light */
-        --border:    #E8DCD2;
-        --bubbleA:   #FFF0E8;  /* assistant bubble */
-        --bubbleU:   #F0F2F6;  /* user bubble */
-        --link:      #E53935;  /* Chili Red links on light */
-      }
+    /* Bubbles & input (dark) */
+    --assistant-bubble-bg: #1b2433;
+    --assistant-bubble-text: #e7edf5;
+    --user-bubble-bg: var(--primary);
+    --user-bubble-text: #ffffff;
 
-      * { box-sizing: border-box; }
-      body {
-        margin: 0;
-        background: var(--bg);
-        color: var(--text);
-        font: 16px/1.5 system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
-      }
+    --input-bg: #1b2433;
+    --input-text: #e7edf5;
+    --input-placeholder: #9bb0c3;
+  }
 
-      /* Optional global link + button styles that use the palette */
-      a { color: var(--link); text-decoration: none; }
-      a:hover { text-decoration: underline; }
+  /* Light theme overrides */
+  :root[data-theme="light"] {
+    --bg: #fff4e6;         /* Porcelain */
+    --panel: #ffffff;
+    --text: #1b1b1b;       /* Charcoal */
+    --muted: #6e7a84;
+    --accent: #ffb300;     /* Saffron */
+    --chip: #f3f5f7;
 
-      .btn {
-        appearance: none;
-        border: 1px solid var(--border);
-        background: var(--accent);
-        color: #fff;
-        padding: 10px 14px;
-        border-radius: 10px;
-        font-weight: 600;
-        cursor: pointer;
-      }
-      .btn.secondary { background: var(--accent2); }
-      .btn:disabled { opacity: .6; cursor: default; }
+    --primary: #e53935;    /* Chili Red */
+    --success: #2e7d32;    /* Basil Green */
 
-      .chip {
-        display: inline-block;
-        padding: 8px 12px;
-        background: var(--chip);
-        border: 1px solid var(--border);
-        border-radius: 999px;
-        color: var(--text);
-      }
-    </style>
+    /* Bubbles & input (light) */
+    --assistant-bubble-bg: #0e1a2b;  /* deep navy for contrast */
+    --assistant-bubble-text: #ffffff;
+    --user-bubble-bg: var(--primary);
+    --user-bubble-text: #ffffff;
+
+    --input-bg: #0e1a2b;
+    --input-text: #ffffff;
+    --input-placeholder: #c7ced6;
+  }
+
+  /* -------- Base layout -------- */
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 16px/1.5 system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+  }
+  .wrap {
+    max-width: 920px;
+    margin: 0 auto;
+    padding: 24px 16px 40px;
+  }
+
+  header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 0 16px;
+  }
+  .muted { color: var(--muted); }
+
+  /* -------- Chat area -------- */
+  .chat {
+    background: var(--panel);
+    border-radius: 16px;
+    padding: 16px;
+    min-height: 420px;
+    max-height: 60vh;
+    overflow-y: auto;
+    box-shadow: 0 1px 0 rgba(0,0,0,.04), 0 8px 24px rgba(0,0,0,.08);
+  }
+  .msg {
+    display: inline-block;
+    margin: 10px 0;
+    padding: 12px 14px;
+    border-radius: 12px;
+    max-width: 80%;
+  }
+  .msg.assistant {
+    background: var(--assistant-bubble-bg);
+    color: var(--assistant-bubble-text);
+    align-self: flex-start;
+  }
+  .msg.user {
+    background: var(--user-bubble-bg);
+    color: var(--user-bubble-text);
+    align-self: flex-end;
+    margin-left: auto;
+  }
+
+  .chips { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip {
+    background: var(--chip);
+    color: var(--text);
+    border: 1px solid rgba(0,0,0,.08);
+    padding: 6px 10px;
+    border-radius: 999px;
+    cursor: pointer;
+  }
+  .chip:hover { filter: brightness(0.98); }
+
+  /* -------- Composer -------- */
+  .composer {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+    align-items: center;
+  }
+  .composer input {
+    flex: 1;
+    border: none;
+    outline: none;
+    border-radius: 12px;
+    padding: 12px 14px;
+    background: var(--input-bg);
+    color: var(--input-text);
+  }
+  .composer input::placeholder { color: var(--input-placeholder); opacity: 1; }
+  .btn, .composer button {
+    background: var(--primary);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    padding: 10px 14px;
+    cursor: pointer;
+  }
+  .btn:disabled, .composer button:disabled { opacity: .7; cursor: default; }
+
+  footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-top: 14px;
+    font-size: 14px;
+  }
+  footer a { color: var(--primary); text-decoration: none; }
+  footer a:hover { text-decoration: underline; }
+</style>
+
   </head>
   <body>
     <div id="root">Loading…</div>

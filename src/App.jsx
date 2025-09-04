@@ -13,7 +13,6 @@ export default function App() {
       window.matchMedia("(prefers-color-scheme: light)").matches;
     return prefersLight ? "light" : "dark";
   });
-
   useEffect(() => {
     document.documentElement.setAttribute(
       "data-theme",
@@ -30,6 +29,7 @@ export default function App() {
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
   const [startupError, setStartupError] = useState("");
+  const [toast, setToast] = useState(null); // {type:'error'|'info'|'success', message:string}
   const chatRef = useRef(null);
 
   // Show missing config clearly on screen
@@ -57,6 +57,13 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [startupError]);
 
+  function showToast(next) {
+    setToast(next);
+    if (next) {
+      setTimeout(() => setToast(null), 3500);
+    }
+  }
+
   async function handleSend({ payloadText, action } = {}) {
     if (sending || startupError) return;
     setSending(true);
@@ -82,11 +89,16 @@ export default function App() {
       }
       const msgs = Array.isArray(data?.messages) ? data.messages : [];
       setMessages((m) => [...m, ...msgs]);
+
+      // If the last message looks like a booking confirmation, show a toast too
+      const last = msgs[msgs.length - 1];
+      if (last && /booking confirmed/i.test(String(last.text))) {
+        showToast({ type: "success", message: "Booking confirmed 🎉 Email on the way." });
+      }
     } catch (e) {
-      setMessages((m) => [
-        ...m,
-        { role: "assistant", text: String(e.message || e) },
-      ]);
+      const msg = String(e?.message || e || "Something went wrong");
+      setMessages((m) => [...m, { role: "assistant", text: msg }]);
+      showToast({ type: "error", message: "Network error. Please try again." });
     } finally {
       setSending(false);
       setText("");
@@ -104,6 +116,9 @@ export default function App() {
 
   return (
     <div className="wrap">
+      {/* Toast */}
+      {toast && <Toast type={toast.type} message={toast.message} />}
+
       <header style={{ display: "flex", alignItems: "center", gap: 12 }}>
         <img src={logoSrc} alt="Rezervo" height={22} style={{ display: "block" }} />
         <div className="muted" style={{ flex: 1 }}>Book restaurants in Madrid</div>
@@ -194,10 +209,14 @@ export default function App() {
 }
 
 function Message({ m, onChip }) {
-  // render m.text with line breaks preserved
+  // success highlight if it looks like a confirmation
+  const isSuccess =
+    /^\s*✅/.test(String(m.text || "")) ||
+    /\bbooking confirmed\b/i.test(String(m.text || ""));
+
   const lines = String(m.text || "").split("\n");
   return (
-    <div className={`msg ${m.role || "assistant"}`}>
+    <div className={`msg ${m.role || "assistant"} ${isSuccess ? "success" : ""}`}>
       <div>
         {lines.map((ln, idx) => (
           <span key={idx}>
@@ -227,7 +246,6 @@ function Message({ m, onChip }) {
 }
 
 function Starter({ onPick }) {
-  // Friendly one-click examples that your backend can parse as free text
   const examples = [
     "2025-09-05 dinner 2 Salamanca Italian €€",
     "2025-09-06 lunch 4 Chueca Spanish €€",
@@ -235,9 +253,7 @@ function Starter({ onPick }) {
   ];
   return (
     <div className="starter">
-      <div className="muted" style={{ marginBottom: 8 }}>
-        Try one:
-      </div>
+      <div className="muted" style={{ marginBottom: 8 }}>Try one:</div>
       <div className="chips">
         {examples.map((ex, i) => (
           <button key={i} className="chip primary" type="button" onClick={() => onPick(ex)}>
@@ -245,6 +261,14 @@ function Starter({ onPick }) {
           </button>
         ))}
       </div>
+    </div>
+  );
+}
+
+function Toast({ type = "info", message }) {
+  return (
+    <div className={`toast ${type}`} role="status" aria-live="polite">
+      {message}
     </div>
   );
 }

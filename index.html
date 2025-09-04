@@ -127,31 +127,30 @@
   .chip:hover { filter: brightness(0.98); }
 
   /* -------- Composer -------- */
-  .composer {
-    display: flex;
-    gap: 8px;
-    margin-top: 12px;
-    align-items: center;
-  }
+   /* Strong, cross-browser input text colors */
   .composer input {
-    flex: 1;
-    border: none;
-    outline: none;
-    border-radius: 12px;
-    padding: 12px 14px;
-    background: var(--input-bg);
-    color: var(--input-text);
+    color: var(--input-text) !important;
+    background-color: var(--input-bg);
+    caret-color: var(--accent);
   }
-  .composer input::placeholder { color: var(--input-placeholder); opacity: 1; }
-  .btn, .composer button {
-    background: var(--primary);
-    color: #fff;
-    border: none;
-    border-radius: 10px;
-    padding: 10px 14px;
-    cursor: pointer;
+  .composer input::placeholder {
+    color: var(--input-placeholder);
+    opacity: 1;
   }
-  .btn:disabled, .composer button:disabled { opacity: .7; cursor: default; }
+  .composer input:focus {
+    outline: 2px solid color-mix(in srgb, var(--accent), transparent 50%);
+    outline-offset: 2px;
+  }
+
+  /* Fix Chrome/Safari autofill forcing its own colors */
+  .composer input:-webkit-autofill,
+  .composer input:-webkit-autofill:hover,
+  .composer input:-webkit-autofill:focus {
+    -webkit-box-shadow: 0 0 0 1000px var(--input-bg) inset !important;
+    -webkit-text-fill-color: var(--input-text) !important;
+    caret-color: var(--accent) !important;
+    transition: background-color 9999s ease-out; /* keep bg stable */
+  }
 
   footer {
     display: flex;

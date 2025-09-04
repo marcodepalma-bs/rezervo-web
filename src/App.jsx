@@ -1,5 +1,4 @@
 // src/App.jsx
-import Logo from "./Logo.jsx";
 import { useEffect, useRef, useState } from "react";
 import { sendChat, getConfigStatus } from "./api.js";
 
@@ -8,7 +7,6 @@ export default function App() {
   const [theme, setTheme] = useState(() => {
     const stored = localStorage.getItem("rezervo_theme");
     if (stored === "light" || stored === "dark") return stored;
-    // default to system preference
     const prefersLight =
       typeof window !== "undefined" &&
       window.matchMedia &&
@@ -103,10 +101,17 @@ export default function App() {
     if (!startupError) handleSend({});
   }
 
+  const logoSrc = theme === "light" ? "/logo-dark.png" : "/logo-light.png";
+
   return (
     <div className="wrap">
       <header style={{ display: "flex", alignItems: "center", gap: 12 }}>
-        <Logo theme={theme} height={22} />
+        <img
+          src={logoSrc}
+          alt="Rezervo"
+          height={22}
+          style={{ display: "block" }}
+        />
         <div className="muted" style={{ flex: 1 }}>
           Book restaurants in Madrid
         </div>

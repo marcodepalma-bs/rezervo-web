@@ -15,7 +15,6 @@ export default function App() {
   });
 
   useEffect(() => {
-    // reflect theme to <html data-theme="..."> so CSS vars in index.html apply
     document.documentElement.setAttribute(
       "data-theme",
       theme === "light" ? "light" : ""
@@ -106,15 +105,8 @@ export default function App() {
   return (
     <div className="wrap">
       <header style={{ display: "flex", alignItems: "center", gap: 12 }}>
-        <img
-          src={logoSrc}
-          alt="Rezervo"
-          height={22}
-          style={{ display: "block" }}
-        />
-        <div className="muted" style={{ flex: 1 }}>
-          Book restaurants in Madrid
-        </div>
+        <img src={logoSrc} alt="Rezervo" height={22} style={{ display: "block" }} />
+        <div className="muted" style={{ flex: 1 }}>Book restaurants in Madrid</div>
         <button
           type="button"
           className="chip"
@@ -134,25 +126,22 @@ export default function App() {
             <div style={{ marginTop: 8 }}>
               Required:
               <ul>
-                <li>
-                  <code>VITE_CHAT_URL</code> = your Supabase chat Invoke URL
-                </li>
-                <li>
-                  <code>VITE_SUPABASE_ANON_KEY</code> = your anon key
-                </li>
+                <li><code>VITE_CHAT_URL</code> = your Supabase chat Invoke URL</li>
+                <li><code>VITE_SUPABASE_ANON_KEY</code> = your anon key</li>
               </ul>
             </div>
           </div>
         </div>
       ) : (
         <>
+          {/* Starter chips appear only when there are no messages yet */}
+          {messages.length === 0 && !sending && (
+            <Starter onPick={(example) => handleSend({ payloadText: example })} />
+          )}
+
           <div id="chat" ref={chatRef} className="chat" aria-live="polite">
             {messages.map((m, i) => (
-              <Message
-                key={i}
-                m={m}
-                onChip={(action) => handleSend({ action })}
-              />
+              <Message key={i} m={m} onChip={(action) => handleSend({ action })} />
             ))}
 
             {/* typing indicator while sending */}
@@ -205,9 +194,19 @@ export default function App() {
 }
 
 function Message({ m, onChip }) {
+  // render m.text with line breaks preserved
+  const lines = String(m.text || "").split("\n");
   return (
     <div className={`msg ${m.role || "assistant"}`}>
-      <div>{m.text}</div>
+      <div>
+        {lines.map((ln, idx) => (
+          <span key={idx}>
+            {ln}
+            {idx < lines.length - 1 ? <br /> : null}
+          </span>
+        ))}
+      </div>
+
       {Array.isArray(m.suggestions) && m.suggestions.length > 0 && (
         <div className="chips">
           {m.suggestions.map((s, idx) => (
@@ -223,6 +222,29 @@ function Message({ m, onChip }) {
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+function Starter({ onPick }) {
+  // Friendly one-click examples that your backend can parse as free text
+  const examples = [
+    "2025-09-05 dinner 2 Salamanca Italian €€",
+    "2025-09-06 lunch 4 Chueca Spanish €€",
+    "2025-09-07 dinner 2 La Latina Japanese €€€",
+  ];
+  return (
+    <div className="starter">
+      <div className="muted" style={{ marginBottom: 8 }}>
+        Try one:
+      </div>
+      <div className="chips">
+        {examples.map((ex, i) => (
+          <button key={i} className="chip primary" type="button" onClick={() => onPick(ex)}>
+            {ex}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }

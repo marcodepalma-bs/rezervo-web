@@ -4,11 +4,87 @@
     <meta charset="utf-8" />
     <title>Rezervo — Book restaurants in Madrid</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Rezervo helps you find and book restaurants in Madrid." />
+
+    <!-- Icons / PWA -->
+    <link rel="icon" href="/icons/favicon-32.png" sizes="32x32" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <!-- Use primary brand color for the browser UI tint -->
+    <meta name="theme-color" content="#E53935" />
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
+
     <style>
-      :root { --bg:#0b0f14; --panel:#111722; --text:#e7edf5; --muted:#9bb0c3; --accent:#4ea1ff; --chip:#1b2433; }
+      /* ===========================
+         Rezervo – Spicy Marinara Palette
+         =========================== */
+
+      /* Default: DARK theme (Charcoal bg, Porcelain text) */
+      :root {
+        --bg:        #1B1B1B;  /* Charcoal */
+        --panel:     #232323;  /* darker panel */
+        --text:      #FFF4E6;  /* Porcelain */
+        --muted:     #CFC8C1;  /* soft light text for secondary labels */
+        --accent:    #E53935;  /* Chili Red (primary) */
+        --accent2:   #FFB300;  /* Saffron */
+        --success:   #2E7D32;  /* Basil Green */
+        --chip:      #2A2A2A;  /* subtle dark chip/bubble */
+        --border:    #343434;
+        --bubbleA:   #242424;  /* assistant bubble */
+        --bubbleU:   #2E2E2E;  /* user bubble */
+        --link:      #FFB300;  /* Saffron links pop on dark */
+      }
+
+      /* LIGHT theme (Porcelain bg, Charcoal text) */
+      :root[data-theme="light"] {
+        --bg:        #FFF4E6;  /* Porcelain */
+        --panel:     #FFFFFF;  /* white card on porcelain */
+        --text:      #1B1B1B;  /* Charcoal */
+        --muted:     #5B5B5B;  /* soft dark text for secondary labels */
+        --accent:    #E53935;  /* Chili Red (primary) */
+        --accent2:   #FFB300;  /* Saffron */
+        --success:   #2E7D32;  /* Basil Green */
+        --chip:      #FFE9D8;  /* warm chip/bubble on light */
+        --border:    #E8DCD2;
+        --bubbleA:   #FFF0E8;  /* assistant bubble */
+        --bubbleU:   #F0F2F6;  /* user bubble */
+        --link:      #E53935;  /* Chili Red links on light */
+      }
+
       * { box-sizing: border-box; }
-      body { margin:0; background:var(--bg); color:var(--text); font:16px/1.5 system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font: 16px/1.5 system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+      }
+
+      /* Optional global link + button styles that use the palette */
+      a { color: var(--link); text-decoration: none; }
+      a:hover { text-decoration: underline; }
+
+      .btn {
+        appearance: none;
+        border: 1px solid var(--border);
+        background: var(--accent);
+        color: #fff;
+        padding: 10px 14px;
+        border-radius: 10px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      .btn.secondary { background: var(--accent2); }
+      .btn:disabled { opacity: .6; cursor: default; }
+
+      .chip {
+        display: inline-block;
+        padding: 8px 12px;
+        background: var(--chip);
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        color: var(--text);
+      }
     </style>
   </head>
   <body>

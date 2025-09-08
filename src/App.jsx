@@ -167,6 +167,12 @@ export default function App() {
             )}
           </div>
 
+{sending && (
+  <div className="msg assistant">
+    <div>…typing</div>
+  </div>
+)}
+
           <form
             className="composer"
             onSubmit={(e) => {

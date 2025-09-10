@@ -32,6 +32,24 @@ export default function App() {
   const [toast, setToast] = useState(null); // {type:'error'|'info'|'success', message:string}
   const chatRef = useRef(null);
 
+  // Local multi-select state for client-only toggle chips
+  // shape: { cuisine: Set<string>, area: Set<string> }
+  const [pendingSelections, setPendingSelections] = useState({});
+
+  const toggleSelection = (group, value) => {
+    setPendingSelections((prev) => {
+      const next = { ...prev };
+      const set = new Set(next[group] ? Array.from(next[group]) : []);
+      if (set.has(value)) set.delete(value);
+      else set.add(value);
+      next[group] = set;
+      return next;
+    });
+  };
+  const clearSelections = (group) => {
+    setPendingSelections((prev) => ({ ...prev, [group]: new Set() }));
+  };
+
   // Show missing config clearly on screen
   useEffect(() => {
     const { missing } = getConfigStatus();
@@ -125,19 +143,62 @@ export default function App() {
     }
   }
 
-  /** ---------- Chip click path: echo chip as user, clear chips, then POST action ---------- */
+  /** ---------- Chip click path ----------
+   *  - Toggle chips: handled locally (no POST)
+   *  - Submit chips: send selected list once (single POST)
+   *  - Other chips: echo + POST normally
+   */
   async function handleChipClick(suggestion) {
     if (!suggestion) return;
     if (sending || startupError) return;
-    addUserBubble(suggestion.title);     // show as user bubble
-    clearChipsOnLastAssistant();         // remove old chips so they can’t be double-clicked
-    await handleSend({ action: suggestion.action }); // send its action
+
+    const a = suggestion.action || {};
+
+    // 1) Client-only toggles (multi-select)
+    if (a.clientOnly && a.type === "toggle" && a.group && a.value) {
+      toggleSelection(a.group, String(a.value));
+      return; // no echo, no POST yet
+    }
+
+    // 2) Submit cuisines
+    if (a.type === "submit_refine_cuisines") {
+      const list = Array.from(pendingSelections.cuisine || []);
+      addUserBubble(
+        list.length ? `Cuisines: ${list.join(", ")}` : "No cuisine preference"
+      );
+      clearChipsOnLastAssistant();
+      await handleSend({
+        action: { type: "refine_set_cuisines", data: list },
+      });
+      clearSelections("cuisine");
+      return;
+    }
+
+    // 3) Submit areas
+    if (a.type === "submit_refine_areas") {
+      const list = Array.from(pendingSelections.area || []);
+      addUserBubble(
+        list.length ? `Areas: ${list.join(", ")}` : "No area preference"
+      );
+      clearChipsOnLastAssistant();
+      await handleSend({
+        action: { type: "refine_set_areas", data: list },
+      });
+      clearSelections("area");
+      return;
+    }
+
+    // 4) All other chips → echo and POST as before
+    addUserBubble(suggestion.title);
+    clearChipsOnLastAssistant();
+    await handleSend({ action: a });
   }
 
   function resetConversation() {
     localStorage.removeItem("rezervo_conversation_id");
     setConversationId(null);
     setMessages([]);
+    setPendingSelections({});
     if (!startupError) handleSend({});
   }
 
@@ -190,6 +251,7 @@ export default function App() {
                 m={m}
                 onChip={(s) => handleChipClick(s)}
                 disabled={sending}
+                pendingSelections={pendingSelections}
               />
             ))}
 
@@ -206,6 +268,9 @@ export default function App() {
             onSubmit={(e) => {
               e.preventDefault();
               if (!text.trim()) return;
+              // echo + POST
+              addUserBubble(text.trim());
+              clearChipsOnLastAssistant();
               handleSend({ payloadText: text.trim() });
               setText("");
             }}
@@ -242,13 +307,21 @@ export default function App() {
   );
 }
 
-function Message({ m, onChip, disabled }) {
+function Message({ m, onChip, disabled, pendingSelections }) {
   // success highlight if it looks like a confirmation
   const isSuccess =
     /^\s*✅/.test(String(m.text || "")) ||
     /\bbooking confirmed\b/i.test(String(m.text || ""));
 
   const lines = String(m.text || "").split("\n");
+
+  const isSelected = (s) => {
+    const a = s?.action || {};
+    if (!(a.clientOnly && a.type === "toggle" && a.group && a.value)) return false;
+    const set = pendingSelections?.[a.group];
+    return !!set && set.has(String(a.value));
+  };
+
   return (
     <div className={`msg ${m.role || "assistant"} ${isSuccess ? "success" : ""}`}>
       <div>
@@ -262,18 +335,22 @@ function Message({ m, onChip, disabled }) {
 
       {Array.isArray(m.suggestions) && m.suggestions.length > 0 && (
         <div className="chips">
-          {m.suggestions.map((s, idx) => (
-            <button
-              key={idx}
-              type="button"
-              className="chip"
-              onClick={() => onChip(s)}     // pass the WHOLE suggestion (title + action)
-              title={s.title}
-              disabled={disabled}
-            >
-              {s.title}
-            </button>
-          ))}
+          {m.suggestions.map((s, idx) => {
+            const selected = isSelected(s);
+            return (
+              <button
+                key={idx}
+                type="button"
+                className={`chip ${selected ? "selected" : ""}`}
+                onClick={() => onChip(s)} // pass the WHOLE suggestion (title + action)
+                title={s.title}
+                disabled={disabled}
+                aria-pressed={selected}
+              >
+                {s.title}
+              </button>
+            );
+          })}
         </div>
       )}
     </div>

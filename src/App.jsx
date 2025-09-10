@@ -64,12 +64,29 @@ export default function App() {
     }
   }
 
+  /** ---------- UI helpers: echo bubbles + chip cleanup ---------- */
+  const addUserBubble = (title) =>
+    setMessages((prev) => [...prev, { role: "user", text: title }]);
+
+  const clearChipsOnLastAssistant = () =>
+    setMessages((prev) => {
+      if (!prev.length) return prev;
+      const last = prev[prev.length - 1];
+      if (last.role !== "assistant" || !last.suggestions) return prev;
+      const updated = [...prev];
+      updated[updated.length - 1] = { ...last, suggestions: undefined };
+      return updated;
+    });
+
+  /** ---------- Centralized POST to /chat ---------- */
   async function handleSend({ payloadText, action } = {}) {
     if (sending || startupError) return;
     setSending(true);
 
+    // Echo user bubble for typed text
     if (payloadText) {
-      setMessages((m) => [...m, { role: "user", text: payloadText }]);
+      addUserBubble(payloadText);
+      clearChipsOnLastAssistant();
     }
 
     try {
@@ -93,7 +110,10 @@ export default function App() {
       // If the last message looks like a booking confirmation, show a toast too
       const last = msgs[msgs.length - 1];
       if (last && /booking confirmed/i.test(String(last.text))) {
-        showToast({ type: "success", message: "Booking confirmed 🎉 Email on the way." });
+        showToast({
+          type: "success",
+          message: "Booking confirmed 🎉 Email on the way.",
+        });
       }
     } catch (e) {
       const msg = String(e?.message || e || "Something went wrong");
@@ -103,6 +123,15 @@ export default function App() {
       setSending(false);
       setText("");
     }
+  }
+
+  /** ---------- Chip click path: echo chip as user, clear chips, then POST action ---------- */
+  async function handleChipClick(suggestion) {
+    if (!suggestion) return;
+    if (sending || startupError) return;
+    addUserBubble(suggestion.title);     // show as user bubble
+    clearChipsOnLastAssistant();         // remove old chips so they can’t be double-clicked
+    await handleSend({ action: suggestion.action }); // send its action
   }
 
   function resetConversation() {
@@ -156,7 +185,12 @@ export default function App() {
 
           <div id="chat" ref={chatRef} className="chat" aria-live="polite">
             {messages.map((m, i) => (
-              <Message key={i} m={m} onChip={(action) => handleSend({ action })} />
+              <Message
+                key={i}
+                m={m}
+                onChip={(s) => handleChipClick(s)}
+                disabled={sending}
+              />
             ))}
 
             {/* typing indicator while sending */}
@@ -208,7 +242,7 @@ export default function App() {
   );
 }
 
-function Message({ m, onChip }) {
+function Message({ m, onChip, disabled }) {
   // success highlight if it looks like a confirmation
   const isSuccess =
     /^\s*✅/.test(String(m.text || "")) ||
@@ -233,8 +267,9 @@ function Message({ m, onChip }) {
               key={idx}
               type="button"
               className="chip"
-              onClick={() => onChip(s.action)}
+              onClick={() => onChip(s)}     // pass the WHOLE suggestion (title + action)
               title={s.title}
+              disabled={disabled}
             >
               {s.title}
             </button>

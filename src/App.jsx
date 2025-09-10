@@ -14,14 +14,17 @@ export default function App() {
     return prefersLight ? "light" : "dark";
   });
   useEffect(() => {
-    document.documentElement.setAttribute(
-      "data-theme",
-      theme === "light" ? "light" : ""
-    );
+    document.documentElement.setAttribute("data-theme", theme === "light" ? "light" : "");
     localStorage.setItem("rezervo_theme", theme);
   }, [theme]);
 
-  // ---- Chat state ----
+  // ---- App/Chat state ----
+  const [started, setStarted] = useState(() => localStorage.getItem("rezervo_started") === "1");
+  useEffect(() => {
+    document.body.classList.toggle("started", started);
+    localStorage.setItem("rezervo_started", started ? "1" : "0");
+  }, [started]);
+
   const [conversationId, setConversationId] = useState(
     localStorage.getItem("rezervo_conversation_id") || null
   );
@@ -67,19 +70,9 @@ export default function App() {
     if (chatRef.current) chatRef.current.scrollTop = chatRef.current.scrollHeight;
   }, [messages]);
 
-  // first load → get greeting
-  useEffect(() => {
-    if (!startupError && !conversationId) {
-      handleSend({});
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [startupError]);
-
   function showToast(next) {
     setToast(next);
-    if (next) {
-      setTimeout(() => setToast(null), 3500);
-    }
+    if (next) setTimeout(() => setToast(null), 3500);
   }
 
   /** ---------- UI helpers: echo bubbles + chip cleanup ---------- */
@@ -103,9 +96,7 @@ export default function App() {
     // Drop exact duplicates fired within 1.2s (fast double click/enter)
     const key = JSON.stringify({ t: payloadText || null, a: action || null });
     const now = Date.now();
-    if (key === lastRequestRef.current.key && now - lastRequestRef.current.ts < 1200) {
-      return;
-    }
+    if (key === lastRequestRef.current.key && now - lastRequestRef.current.ts < 1200) return;
     lastRequestRef.current = { key, ts: now };
 
     if (sending || startupError) return;
@@ -115,7 +106,7 @@ export default function App() {
     if (payloadText) {
       setMessages((m) => {
         const last = m[m.length - 1];
-        if (last?.role === "user" && last.text === payloadText) return m; // already echoed
+        if (last?.role === "user" && last.text === payloadText) return m;
         return [...m, { role: "user", text: payloadText }];
       });
     }
@@ -152,11 +143,7 @@ export default function App() {
     }
   }
 
-  /** ---------- Chip click path ----------
-   *  - Toggle chips: handled locally (no POST)
-   *  - Submit chips: send selected list once (single POST)
-   *  - Other chips: echo + POST normally
-   */
+  /** ---------- Chip click path ---------- */
   async function handleChipClick(suggestion) {
     if (!suggestion) return;
     if (sending || startupError) return;
@@ -172,65 +159,79 @@ export default function App() {
     // 2) Submit cuisines
     if (a.type === "submit_refine_cuisines") {
       const list = Array.from(pendingSelections.cuisine || []);
-      addUserBubble(
-        list.length ? `Cuisines: ${list.join(", ")}` : "No cuisine preference"
-      );
+      addUserBubble(list.length ? `Cuisines: ${list.join(", ")}` : "No cuisine preference");
       clearChipsOnLastAssistant();
-      await handleSend({
-        action: { type: "refine_set_cuisines", data: list },
-      });
+      await handleSend({ action: { type: "refine_set_cuisines", data: list } });
       clearSelections("cuisine");
+      setStarted(true);
       return;
     }
 
     // 3) Submit areas
     if (a.type === "submit_refine_areas") {
       const list = Array.from(pendingSelections.area || []);
-      addUserBubble(
-        list.length ? `Areas: ${list.join(", ")}` : "No area preference"
-      );
+      addUserBubble(list.length ? `Areas: ${list.join(", ")}` : "No area preference");
       clearChipsOnLastAssistant();
-      await handleSend({
-        action: { type: "refine_set_areas", data: list },
-      });
+      await handleSend({ action: { type: "refine_set_areas", data: list } });
       clearSelections("area");
+      setStarted(true);
       return;
     }
 
     // 4) All other chips → echo and POST as before
     addUserBubble(suggestion.title);
     clearChipsOnLastAssistant();
+    setStarted(true);
     await handleSend({ action: a });
+  }
+
+  /** ---------- Landing → start ---------- */
+  const [heroText, setHeroText] = useState("");
+  async function startWithText() {
+    const t = heroText.trim() || "hello";
+    addUserBubble(t);
+    clearChipsOnLastAssistant();
+    setStarted(true);
+    await handleSend({ payloadText: t });
+    setHeroText("");
   }
 
   function resetConversation() {
     localStorage.removeItem("rezervo_conversation_id");
+    localStorage.removeItem("rezervo_started");
     setConversationId(null);
     setMessages([]);
     setPendingSelections({});
-    if (!startupError) handleSend({});
+    setStarted(false);
   }
 
   const logoSrc = theme === "light" ? "/logo-dark.png" : "/logo-light.png";
 
   return (
-    <div className="wrap">
+    <div className={`wrap ${started ? "app-started" : "app-landing"}`}>
       {/* Toast */}
       {toast && <Toast type={toast.type} message={toast.message} />}
 
-      <header style={{ display: "flex", alignItems: "center", gap: 12 }}>
-        <img src={logoSrc} alt="Rezervo" height={22} style={{ display: "block" }} />
-        <div className="muted" style={{ flex: 1 }}>Book restaurants in Madrid</div>
-        <button
-          type="button"
-          className="chip"
-          onClick={() => setTheme(theme === "light" ? "dark" : "light")}
-          title="Toggle theme"
-          aria-label="Toggle light/dark theme"
-        >
-          {theme === "light" ? "Dark mode" : "Light mode"}
-        </button>
-      </header>
+      {/* Header only after start */}
+      {started && !startupError && (
+        <header className="app-header">
+          <div className="brand">
+            <img src={logoSrc} alt="Rezervo" height={22} />
+          </div>
+          <div className="muted" style={{ flex: 1 }}>
+            Your personal concierge for restaurant bookings in Madrid
+          </div>
+          <button
+            type="button"
+            className="chip"
+            onClick={() => setTheme(theme === "light" ? "dark" : "light")}
+            title="Toggle theme"
+            aria-label="Toggle light/dark theme"
+          >
+            {theme === "light" ? "Dark mode" : "Light mode"}
+          </button>
+        </header>
+      )}
 
       {startupError ? (
         <div className="chat" style={{ padding: 20 }}>
@@ -240,63 +241,107 @@ export default function App() {
             <div style={{ marginTop: 8 }}>
               Required:
               <ul>
-                <li><code>VITE_CHAT_URL</code> = your Supabase chat Invoke URL</li>
-                <li><code>VITE_SUPABASE_ANON_KEY</code> = your anon key</li>
+                <li>
+                  <code>VITE_CHAT_URL</code> = your Supabase chat Invoke URL
+                </li>
+                <li>
+                  <code>VITE_SUPABASE_ANON_KEY</code> = your anon key
+                </li>
               </ul>
             </div>
           </div>
         </div>
       ) : (
         <>
-          {/* Starter chips appear only when there are no messages yet */}
-          {messages.length === 0 && !sending && (
-            <Starter onPick={(example) => handleSend({ payloadText: example })} />
+          {/* Landing hero BEFORE start */}
+          {!started && (
+            <div className="hero">
+              <div className="hero-inner">
+                <img className="hero-logo" src={logoSrc} alt="Rezervo" />
+                <div className="hero-tagline">
+                  Your personal concierge for restaurant bookings in Madrid
+                </div>
+                <form
+                  className="hero-slit"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    startWithText();
+                  }}
+                >
+                  <input
+                    type="text"
+                    placeholder="Say hello to begin…"
+                    value={heroText}
+                    onChange={(e) => setHeroText(e.target.value)}
+                    aria-label="Start conversation"
+                    autoFocus
+                  />
+                  <button type="submit" className="btn">
+                    Start
+                  </button>
+                </form>
+
+                <button
+                  className="theme-toggle chip"
+                  type="button"
+                  onClick={() => setTheme(theme === "light" ? "dark" : "light")}
+                  aria-label="Toggle theme"
+                  title="Toggle theme"
+                >
+                  {theme === "light" ? "Dark" : "Light"}
+                </button>
+              </div>
+            </div>
           )}
 
-          <div id="chat" ref={chatRef} className="chat" aria-live="polite">
-            {messages.map((m, i) => (
-              <Message
-                key={i}
-                m={m}
-                onChip={(s) => handleChipClick(s)}
-                disabled={sending}
-                pendingSelections={pendingSelections}
-              />
-            ))}
+          {/* Chat AFTER start */}
+          {started && (
+            <>
+              <div id="chat" ref={chatRef} className="chat" aria-live="polite">
+                {messages.map((m, i) => (
+                  <Message
+                    key={i}
+                    m={m}
+                    onChip={(s) => handleChipClick(s)}
+                    disabled={sending}
+                    pendingSelections={pendingSelections}
+                  />
+                ))}
 
-            {/* typing indicator while sending */}
-            {sending && (
-              <div className="msg assistant" aria-live="polite">
-                <div>Typing…</div>
+                {/* typing indicator while sending */}
+                {sending && (
+                  <div className="msg assistant" aria-live="polite">
+                    <div>Typing…</div>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
 
-          <form
-            className="composer"
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (!text.trim()) return;
-              // echo + POST
-              addUserBubble(text.trim());
-              clearChipsOnLastAssistant();
-              handleSend({ payloadText: text.trim() });
-              setText("");
-            }}
-          >
-            <input
-              type="text"
-              placeholder="Type here… e.g. 2025-09-05 dinner 4 Salamanca Italian €€"
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              disabled={sending}
-              aria-label="Message"
-              autoComplete="off"
-            />
-            <button type="submit" disabled={sending} className="btn">
-              {sending ? "Sending…" : "Send"}
-            </button>
-          </form>
+              <form
+                className="composer"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (!text.trim()) return;
+                  addUserBubble(text.trim());
+                  clearChipsOnLastAssistant();
+                  handleSend({ payloadText: text.trim() });
+                  setText("");
+                }}
+              >
+                <input
+                  type="text"
+                  placeholder="Type here… e.g. 2025-09-05 dinner 4 Salamanca Italian €€"
+                  value={text}
+                  onChange={(e) => setText(e.target.value)}
+                  disabled={sending}
+                  aria-label="Message"
+                  autoComplete="off"
+                />
+                <button type="submit" disabled={sending} className="btn">
+                  {sending ? "Sending…" : "Send"}
+                </button>
+              </form>
+            </>
+          )}
         </>
       )}
 
@@ -317,10 +362,8 @@ export default function App() {
 }
 
 function Message({ m, onChip, disabled, pendingSelections }) {
-  // success highlight if it looks like a confirmation
   const isSuccess =
-    /^\s*✅/.test(String(m.text || "")) ||
-    /\bbooking confirmed\b/i.test(String(m.text || ""));
+    /^\s*✅/.test(String(m.text || "")) || /\bbooking confirmed\b/i.test(String(m.text || ""));
 
   const lines = String(m.text || "").split("\n");
 
@@ -351,7 +394,7 @@ function Message({ m, onChip, disabled, pendingSelections }) {
                 key={idx}
                 type="button"
                 className={`chip ${selected ? "selected" : ""}`}
-                onClick={() => onChip(s)} // pass the WHOLE suggestion (title + action)
+                onClick={() => onChip(s)}
                 title={s.title}
                 disabled={disabled}
                 aria-pressed={selected}
@@ -362,26 +405,6 @@ function Message({ m, onChip, disabled, pendingSelections }) {
           })}
         </div>
       )}
-    </div>
-  );
-}
-
-function Starter({ onPick }) {
-  const examples = [
-    "2025-09-05 dinner 2 Salamanca Italian €€",
-    "2025-09-06 lunch 4 Chueca Spanish €€",
-    "2025-09-07 dinner 2 La Latina Japanese €€€",
-  ];
-  return (
-    <div className="starter">
-      <div className="muted" style={{ marginBottom: 8 }}>Try one:</div>
-      <div className="chips">
-        {examples.map((ex, i) => (
-          <button key={i} className="chip primary" type="button" onClick={() => onPick(ex)}>
-            {ex}
-          </button>
-        ))}
-      </div>
     </div>
   );
 }

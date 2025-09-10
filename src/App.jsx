@@ -99,66 +99,48 @@ export default function App() {
   /** ---------- Centralized POST to /chat ---------- */
   const lastRequestRef = useRef({ key: "", ts: 0 });
 
-async function handleSend({ payloadText, action } = {}) {
-  // Drop exact duplicates fired within 1.2s (fast double click/enter)
-  const key = JSON.stringify({ t: payloadText || null, a: action || null });
-  const now = Date.now();
-  if (key === lastRequestRef.current.key && now - lastRequestRef.current.ts < 1200) {
-    return;
-  }
-  lastRequestRef.current = { key, ts: now };
-
-  if (sending || startupError) return;
-  setSending(true);
-
-  // Echo user text once (and only once)
-  if (payloadText) {
-    setMessages((m) => {
-      const last = m[m.length - 1];
-      if (last?.role === "user" && last.text === payloadText) return m; // already echoed
-      return [...m, { role: "user", text: payloadText }];
-    });
-  }
-
-  try {
-    const body = {
-      conversationId: conversationId || undefined,
-      channel: "web",
-      locale: "en-GB",
-      ...(payloadText ? { text: payloadText } : {}),
-      ...(action ? { action } : {}),
-    };
-
-    const data = await sendChat(body);
-
-    if (data?.conversationId && data.conversationId !== conversationId) {
-      setConversationId(data.conversationId);
-      localStorage.setItem("rezervo_conversation_id", data.conversationId);
+  async function handleSend({ payloadText, action } = {}) {
+    // Drop exact duplicates fired within 1.2s (fast double click/enter)
+    const key = JSON.stringify({ t: payloadText || null, a: action || null });
+    const now = Date.now();
+    if (key === lastRequestRef.current.key && now - lastRequestRef.current.ts < 1200) {
+      return;
     }
-    const msgs = Array.isArray(data?.messages) ? data.messages : [];
-    setMessages((m) => [...m, ...msgs]);
+    lastRequestRef.current = { key, ts: now };
 
-    const last = msgs[msgs.length - 1];
-    if (last && /booking confirmed/i.test(String(last.text))) {
-      showToast({ type: "success", message: "Booking confirmed 🎉 Email on the way." });
+    if (sending || startupError) return;
+    setSending(true);
+
+    // Echo user text once (and only once)
+    if (payloadText) {
+      setMessages((m) => {
+        const last = m[m.length - 1];
+        if (last?.role === "user" && last.text === payloadText) return m; // already echoed
+        return [...m, { role: "user", text: payloadText }];
+      });
     }
-  } catch (e) {
-    const msg = String(e?.message || e || "Something went wrong");
-    setMessages((m) => [...m, { role: "assistant", text: msg }]);
-    showToast({ type: "error", message: "Network error. Please try again." });
-  } finally {
-    setSending(false);
-    setText("");
-  }
-}
 
-      // If the last message looks like a booking confirmation, show a toast too
+    try {
+      const body = {
+        conversationId: conversationId || undefined,
+        channel: "web",
+        locale: "en-GB",
+        ...(payloadText ? { text: payloadText } : {}),
+        ...(action ? { action } : {}),
+      };
+
+      const data = await sendChat(body);
+
+      if (data?.conversationId && data.conversationId !== conversationId) {
+        setConversationId(data.conversationId);
+        localStorage.setItem("rezervo_conversation_id", data.conversationId);
+      }
+      const msgs = Array.isArray(data?.messages) ? data.messages : [];
+      setMessages((m) => [...m, ...msgs]);
+
       const last = msgs[msgs.length - 1];
       if (last && /booking confirmed/i.test(String(last.text))) {
-        showToast({
-          type: "success",
-          message: "Booking confirmed 🎉 Email on the way.",
-        });
+        showToast({ type: "success", message: "Booking confirmed 🎉 Email on the way." });
       }
     } catch (e) {
       const msg = String(e?.message || e || "Something went wrong");
